@@ -1,0 +1,55 @@
+{
+  "name": "habil",
+  "version": "0.1.0",
+  "description": "Cómputo de días hábiles y plazos legales en México (fiscal, laboral y judicial), con el fundamento de cada día.",
+  "keywords": [
+    "dias-habiles",
+    "business-days",
+    "plazos",
+    "deadline",
+    "mexico",
+    "sat",
+    "cff",
+    "lft",
+    "legal",
+    "fiscal",
+    "nomina",
+    "legaltech",
+    "holidays"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "bin": {
+    "habil": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "VERIFY.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "node --test 'test/*.test.ts'",
+    "typecheck": "tsc --noEmit",
+    "api": "node src/server.ts",
+    "prepublishOnly": "npm run test && npm run build",
+    "verify:gen": "node scripts/gen-verify.ts > VERIFY.md",
+    "traccion": "node scripts/traccion.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^26.3.0",
+    "typescript": "^5.7.0"
+  }
+}

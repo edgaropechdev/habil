@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node: ['20', '22', '24']
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - run: npm install
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+  verify-docs:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm install
+      # VERIFY.md se genera desde las reglas. Si alguien añade una regla y no
+      # regenera el checklist, el PR falla aquí en vez de dejar el doc mintiendo.
+      - name: VERIFY.md está sincronizado con las reglas
+        run: |
+          node scripts/gen-verify.ts > /tmp/VERIFY.expected.md
+          diff -u VERIFY.md /tmp/VERIFY.expected.md \
+            || (echo "::error::Ejecuta: node scripts/gen-verify.ts > VERIFY.md" && exit 1)
