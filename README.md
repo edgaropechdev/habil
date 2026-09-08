@@ -3,7 +3,7 @@
 **Días hábiles y plazos legales en México — con el fundamento de cada día.**
 
 [![npm](https://img.shields.io/npm/v/habil.svg)](https://www.npmjs.com/package/habil)
-[![tests](https://img.shields.io/badge/tests-30%20passing-brightgreen)](#pruebas)
+[![tests](https://img.shields.io/badge/tests-32%20passing-brightgreen)](#pruebas)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 Cero dependencias · TypeScript · Node ≥ 20
@@ -17,27 +17,41 @@ El 20 de noviembre de 2026 cae en viernes. ¿Es día hábil?
 ```
 $ npx habil 2026-11-20
 
-  mx-fiscal              inhábil
-                         └ 20 de noviembre (fecha fija; la LFT lo recorre al tercer lunes)
-                           Código Fiscal de la Federación, artículo 12
+  mx-fiscal              hábil
   mx-laboral             hábil
   mx-judicial-federal    inhábil
                          └ 20 de noviembre
-                           Ley Orgánica del Poder Judicial de la Federación
+                           Ley Orgánica del Poder Judicial de la Federación, artículo 229
 ```
 
-Depende de para qué preguntes. El Código Fiscal usa la **fecha fija**; la Ley Federal
-del Trabajo la **recorre al tercer lunes**. Son días distintos, y esa diferencia mueve
-vencimientos reales.
+Y el lunes anterior, que no conmemora nada en particular, es exactamente al revés:
+
+```
+$ npx habil 2026-11-16
+
+  mx-fiscal              inhábil
+                         └ Tercer lunes de noviembre, en conmemoración del 20 de noviembre
+                           Código Fiscal de la Federación, artículo 12
+  mx-laboral             inhábil
+                         └ Tercer lunes de noviembre, en conmemoración del 20 de noviembre
+                           Ley Federal del Trabajo, artículo 74
+  mx-judicial-federal    hábil
+```
+
+Depende de para qué preguntes. El CFF y la LFT **recorren** el 20 de noviembre al
+tercer lunes; el Poder Judicial de la Federación usa la **fecha fija**. Son días
+distintos, y esa diferencia mueve vencimientos reales.
 
 Casos como este es lo que hace `habil`:
 
 | Fecha | Fiscal (CFF) | Laboral (LFT) | Judicial (PJF) |
 |---|---|---|---|
-| 5 de mayo | inhábil | **laborable** | laborable |
-| 20 de noviembre | inhábil | **laborable** | inhábil |
-| Tercer lunes de noviembre | **hábil** | descanso | hábil |
-| 5 de febrero (si no es lunes) | hábil | hábil | **inhábil** |
+| 5 de mayo | **inhábil** | laborable | laborable |
+| 20 de noviembre | hábil | laborable | **inhábil** |
+| Tercer lunes de noviembre | **inhábil** | **descanso** | hábil |
+| 5 de febrero (si no es lunes) | hábil | laborable | **inhábil** |
+| 14 de septiembre | hábil | laborable | **inhábil** |
+| 1 de octubre de cada 6 años | hábil | **descanso** | hábil |
 
 Las librerías de festivos te dan un calendario plano. `habil` modela **la semántica**:
 qué cuenta como hábil, para qué trámite, y bajo qué artículo.
@@ -88,7 +102,7 @@ r.skipped[2];
 //     ruleId: 'mx-fiscal:mar-tercer-lunes',
 //     label: 'Tercer lunes de marzo, en conmemoración del 21 de marzo',
 //     source: 'Código Fiscal de la Federación, artículo 12',
-//     url: 'https://www.diputados.gob.mx/LeyesBiblio/ref/cff.htm',
+//     url: 'https://www.diputados.gob.mx/LeyesBiblio/pdf/CFF.pdf',
 //     verified: false
 //   }]
 // }
@@ -110,8 +124,8 @@ deadline({ from: '2026-12-23', amount: 2, unit: 'naturales', calendar: 'mx-fisca
 ### El resto de la API
 
 ```ts
-isBusinessDay('2026-11-20', { calendar: 'mx-fiscal' });        // false
-explainDay('2026-11-20', { calendar: 'mx-fiscal' });           // con fundamento
+isBusinessDay('2026-11-20', { calendar: 'mx-judicial-federal' });  // false
+explainDay('2026-11-16', { calendar: 'mx-fiscal' });           // con fundamento
 nextBusinessDay('2026-03-20', { calendar: 'mx-fiscal' });      // '2026-03-23'
 previousBusinessDay('2026-03-23', { calendar: 'mx-fiscal' });  // '2026-03-20'
 rollForward('2026-03-21', { calendar: 'mx-fiscal' });          // '2026-03-23'
@@ -193,7 +207,7 @@ que corre en cualquier VPS o plataforma.
 |---|---|---|
 | `mx-fiscal` | Plazos ante autoridades fiscales federales | CFF art. 12 |
 | `mx-laboral` | Días de descanso obligatorio | LFT art. 74 |
-| `mx-judicial-federal` | Plazos ante órganos del PJF | LOPJF y acuerdos del CJF |
+| `mx-judicial-federal` | Plazos ante órganos del PJF | LOPJF art. 229 y acuerdos del CJF |
 
 `mx-laboral` **no** excluye sábados y domingos: el descanso semanal es el artículo 69
 y depende de la jornada de cada centro de trabajo. Si tu caso los excluye, agrégalos
@@ -217,7 +231,7 @@ Faltan además datos que se publican cada año y que **no se inventaron a propó
 vacaciones generales del SAT, periodos vacacionales y suspensiones de labores del PJF,
 y jornadas electorales.
 
-Verificar las ~28 reglas es un par de horas de trabajo con los textos a la mano.
+Verificar las 32 reglas es un par de horas de trabajo con los textos a la mano.
 El checklist está en [VERIFY.md](VERIFY.md) y es la mejor primera contribución
 al proyecto.
 
@@ -229,7 +243,7 @@ verificada.** Es software MIT sin garantía y no sustituye asesoría legal ni fi
 ## Pruebas
 
 ```bash
-npm test        # 30 pruebas, sin dependencias
+npm test        # 32 pruebas, sin dependencias
 npm run build   # compila a dist/
 ```
 

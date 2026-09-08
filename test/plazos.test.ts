@@ -29,11 +29,25 @@ test('el calendario laboral no excluye fines de semana por sí mismo', () => {
   assert.equal(isBusinessDay('2026-03-21', laboral), true);
 });
 
-test('DIVERGENCIA: 20 de noviembre es fijo en fiscal, tercer lunes en laboral', () => {
-  assert.equal(isBusinessDay('2026-11-20', fiscal), false); // viernes 20, inhábil fiscal
-  assert.equal(isBusinessDay('2026-11-20', laboral), true); // pero sí es laborable
-  assert.equal(isBusinessDay('2026-11-16', laboral), false); // tercer lunes: descanso
-  assert.equal(isBusinessDay('2026-11-16', fiscal), true); // y hábil para el SAT
+test('DIVERGENCIA: el 20 de noviembre se recorre al lunes salvo en el PJF', () => {
+  // El CFF art. 12 y la LFT art. 74 fracc. VI dicen ambos "el tercer lunes de
+  // noviembre en conmemoración del 20 de noviembre". Quien diverge es el PJF: el
+  // art. 229 de la LOPJF sí usa la fecha fija.
+  assert.equal(isBusinessDay('2026-11-20', fiscal), true); // viernes 20: hábil
+  assert.equal(isBusinessDay('2026-11-20', laboral), true);
+  assert.equal(isBusinessDay('2026-11-20', judicial), false); // fecha fija
+
+  assert.equal(isBusinessDay('2026-11-16', fiscal), false); // tercer lunes
+  assert.equal(isBusinessDay('2026-11-16', laboral), false);
+  assert.equal(isBusinessDay('2026-11-16', judicial), true);
+});
+
+test('el PJF descansa el 14 de septiembre y los demás calendarios no', () => {
+  // El art. 229 lista "14 y 16 de septiembre". El 14 no aparece ni en el CFF ni
+  // en la LFT.
+  assert.equal(isBusinessDay('2026-09-14', judicial), false); // lunes
+  assert.equal(isBusinessDay('2026-09-14', fiscal), true);
+  assert.equal(isBusinessDay('2026-09-14', laboral), true);
 });
 
 test('DIVERGENCIA: 5 de mayo es inhábil fiscal pero no descanso obligatorio', () => {
@@ -48,10 +62,30 @@ test('DIVERGENCIA: el judicial usa fechas fijas, no lunes recorridos', () => {
   assert.equal(isBusinessDay('2026-02-02', judicial), true);
 });
 
-test('la regla sexenal solo aplica cada 6 años', () => {
-  assert.equal(isBusinessDay('2024-12-01', fiscal), false);
-  assert.equal(isBusinessDay('2030-12-01', fiscal), false);
-  assert.equal(isBusinessDay('2027-12-01', fiscal), true);
+const tieneRegla = (r: { reasons: Array<{ ruleId: string }> }, frag: string) =>
+  r.reasons.some((x) => x.ruleId.includes(frag));
+
+test('la transmisión del Ejecutivo pasó de diciembre a octubre en la LFT', () => {
+  // Fracción VII reformada DOF 30-09-2024.
+  assert.equal(isBusinessDay('2024-10-01', laboral), false);
+  assert.equal(isBusinessDay('2030-10-01', laboral), false);
+  assert.equal(isBusinessDay('2027-10-01', laboral), true); // no toca sexenio
+
+  // El texto anterior (1 de diciembre) sigue vigente para plazos históricos.
+  // 2018-12-01 cayó en sábado y el calendario laboral no excluye fines de
+  // semana, así que se comprueba por el fundamento y no por el veredicto —
+  // de lo contrario la prueba pasaría por la razón equivocada.
+  assert.ok(tieneRegla(explainDay('2018-12-01', laboral), 'sexenal'));
+  assert.ok(!tieneRegla(explainDay('2030-12-01', laboral), 'sexenal'));
+});
+
+test('el CFF conserva el texto de diciembre, condicionado a una transmisión que ya no ocurre ahí', () => {
+  // "el 1o. de diciembre de cada 6 años, cuando corresponda a la transmisión del
+  // Poder Ejecutivo". Desde 2024 la transmisión es en octubre, así que la
+  // condición no se cumple. Y el 1 de octubre no está en la lista del CFF.
+  assert.ok(tieneRegla(explainDay('2018-12-01', fiscal), 'sexenal'));
+  assert.ok(!tieneRegla(explainDay('2030-12-01', fiscal), 'sexenal'));
+  assert.equal(isBusinessDay('2030-10-01', fiscal), true);
 });
 
 test('explainDay devuelve el fundamento, no solo el veredicto', () => {
@@ -164,7 +198,7 @@ test('compareCalendars muestra la misma fecha en los tres calendarios', () => {
   const r = compareCalendars('2026-11-20');
   const byId = Object.fromEntries(r.map((x) => [x.calendarId, x.isBusinessDay]));
   assert.deepEqual(byId, {
-    'mx-fiscal': false,
+    'mx-fiscal': true,
     'mx-laboral': true,
     'mx-judicial-federal': false,
   });

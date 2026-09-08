@@ -1,7 +1,8 @@
 import type { Calendar } from '../types.ts';
 
-const LOPJF = 'Ley Orgánica del Poder Judicial de la Federación';
-const URL_LOPJF = 'https://www.diputados.gob.mx/LeyesBiblio/index.htm';
+const LOPJF = 'Ley Orgánica del Poder Judicial de la Federación, artículo 229';
+const URL_LOPJF = 'https://www.diputados.gob.mx/LeyesBiblio/pdf/LOPJF.pdf';
+const ACUERDOS = 'Acuerdos generales del CJF y de la SCJN';
 
 /**
  * Días inhábiles para plazos ante órganos del Poder Judicial de la Federación.
@@ -69,11 +70,22 @@ export const mxJudicialFederal: Calendar = {
     },
     {
       kind: 'fixed',
+      id: 'mx-judicial:09-14',
+      label: '14 de septiembre',
+      month: 9,
+      day: 14,
+      source: LOPJF,
+      url: URL_LOPJF,
+      verified: false,
+    },
+    {
+      kind: 'fixed',
       id: 'mx-judicial:09-16',
       label: '16 de septiembre',
       month: 9,
       day: 16,
       source: LOPJF,
+      url: URL_LOPJF,
       verified: false,
     },
     {
@@ -86,12 +98,17 @@ export const mxJudicialFederal: Calendar = {
       verified: false,
     },
     {
+      // OJO: el artículo 229 NO lista el 25 de diciembre. En la práctica es
+      // inhábil porque cae dentro del segundo periodo vacacional que el CJF
+      // publica cada año, así que la regla se conserva pero con el fundamento
+      // correcto. Cuando se carguen los periodos vacacionales reales en
+      // `mx-judicial:vacaciones`, esta regla queda redundante y debe eliminarse.
       kind: 'fixed',
       id: 'mx-judicial:12-25',
-      label: '25 de diciembre',
+      label: '25 de diciembre (no listado en el art. 229; cae en el periodo vacacional del CJF)',
       month: 12,
       day: 25,
-      source: LOPJF,
+      source: ACUERDOS,
       verified: false,
     },
     {
@@ -100,7 +117,7 @@ export const mxJudicialFederal: Calendar = {
       label: 'Periodos vacacionales del PJF',
       // Publicados por acuerdo cada año. Vacío a propósito.
       ranges: [],
-      source: 'Acuerdos generales del CJF y de la SCJN',
+      source: ACUERDOS,
       verified: false,
     },
     {
@@ -108,7 +125,7 @@ export const mxJudicialFederal: Calendar = {
       id: 'mx-judicial:suspension-labores',
       label: 'Días de suspensión de labores por acuerdo',
       dates: [],
-      source: 'Acuerdos generales del CJF y de la SCJN',
+      source: ACUERDOS,
       verified: false,
     },
   ],
