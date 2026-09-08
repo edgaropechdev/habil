@@ -73,7 +73,7 @@ function mark(ok: boolean): string {
 
 function printWarnings(warnings: string[]): void {
   if (warnings.length === 0) return;
-  console.log(`\n${C.yellow}⚠ Reglas sin verificar contra fuente primaria:${C.reset}`);
+  console.log(`\n${C.yellow}⚠ Advertencias:${C.reset}`);
   for (const w of warnings) console.log(`  ${C.dim}${w}${C.reset}`);
 }
 
@@ -169,7 +169,15 @@ function cmdCalendarios(args: Args): void {
   for (const c of cals) {
     console.log(`  ${C.bold}${c.id}${C.reset} — ${c.name}`);
     console.log(`  ${C.dim}${c.description}${C.reset}`);
-    console.log(`  ${C.dim}Fuente: ${c.source}${C.reset}\n`);
+    console.log(`  ${C.dim}Fuente: ${c.source}${C.reset}`);
+    if (c.tramites?.length) {
+      console.log(`  ${C.dim}Trámites: ${c.tramites.map((t) => t.id).join(', ')}${C.reset}`);
+    }
+    if (c.annualDataYears) {
+      const years = c.annualDataYears.length === 0 ? 'ninguno' : c.annualDataYears.join(', ');
+      console.log(`  ${C.dim}Datos anuales cargados: ${years}${C.reset}`);
+    }
+    console.log('');
   }
 }
 

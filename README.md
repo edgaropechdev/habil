@@ -3,7 +3,7 @@
 **Días hábiles y plazos legales en México — con el fundamento de cada día.**
 
 [![npm](https://img.shields.io/npm/v/habil.svg)](https://www.npmjs.com/package/habil)
-[![tests](https://img.shields.io/badge/tests-40%20passing-brightgreen)](#pruebas)
+[![tests](https://img.shields.io/badge/tests-41%20passing-brightgreen)](#pruebas)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 Cero dependencias · TypeScript · Node ≥ 20
@@ -299,7 +299,17 @@ explainDay('2027-07-22', { calendar: 'mx-judicial-federal' }).warnings;
 El aviso aparece **aunque el día salga hábil**, que es justo el caso peligroso: un
 día que en realidad era inhábil hace que el plazo calculado salga corto.
 
-Cargados hoy: **2026** en `mx-fiscal` y en `mx-judicial-federal`.
+| Calendario | Años cargados |
+|---|---|
+| `mx-fiscal` | 2026 |
+| `mx-judicial-federal` | 2026 |
+| `mx-laboral` | ninguno — advierte siempre |
+
+`mx-laboral` declara la lista **vacía**, que no es lo mismo que omitir el campo: su
+fracción IX depende de las jornadas electorales, que son federales y locales y
+cambian por entidad. Como no hay ningún año cargado, advierte en todos. Un
+calendario que no dependa de publicaciones anuales simplemente omite el campo y no
+advierte nunca.
 
 ---
 
@@ -321,8 +331,9 @@ firmar**: `verified` solo pasa a `true` cuando una persona lo confirma y anota s
 nombre en la bitácora de [VERIFY.md](VERIFY.md). Ahí está el checklist, y sigue
 siendo la mejor primera contribución al proyecto.
 
-Datos anuales cargados: 2026. Sigue faltando el segundo periodo vacacional del SAT
-(se publica en diciembre) y las jornadas electorales locales del `mx-laboral`.
+Datos anuales cargados: 2026 en `mx-fiscal` y `mx-judicial-federal`. Sigue faltando
+el segundo periodo vacacional del SAT (se publica en diciembre) y las jornadas
+electorales del `mx-laboral`, que no tiene ningún año cargado.
 
 **No uses esto para calcular un plazo real hasta que la regla que te importa esté
 verificada.** Es software MIT sin garantía y no sustituye asesoría legal ni fiscal.
@@ -332,7 +343,7 @@ verificada.** Es software MIT sin garantía y no sustituye asesoría legal ni fi
 ## Pruebas
 
 ```bash
-npm test        # 40 pruebas, sin dependencias
+npm test        # 41 pruebas, sin dependencias
 npm run build   # compila a dist/
 ```
 

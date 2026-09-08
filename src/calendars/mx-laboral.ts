@@ -19,6 +19,10 @@ export const mxLaboral: Calendar = {
     'Días de descanso obligatorio del artículo 74 de la LFT. No incluye el descanso semanal (art. 69) porque depende de la jornada de cada centro de trabajo.',
   source: LFT,
   url: URL_LFT,
+  // Vacío a propósito, y distinto de omitir el campo: la fracción IX depende de
+  // las jornadas electorales, que son federales Y locales y varían por entidad.
+  // No hay ningún año cargado, así que el motor advierte en todos.
+  annualDataYears: [],
   rules: [
     {
       kind: 'fixed',
@@ -125,7 +129,9 @@ export const mxLaboral: Calendar = {
       kind: 'dates',
       id: 'mx-laboral:jornada-electoral',
       label: 'Jornada electoral ordinaria (federal o local)',
-      // Depende de la entidad y del calendario electoral vigente.
+      // Depende de la entidad y del calendario electoral vigente. Cargar esto
+      // exige decidir de qué entidad se habla, así que probablemente termine
+      // siendo un calendario por estado en vez de una lista global.
       dates: [],
       source: `${LFT}, fracción IX — determinado por las leyes electorales`,
       verified: false,

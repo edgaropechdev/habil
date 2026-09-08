@@ -105,8 +105,13 @@ export function evaluateDay(
   // "inhábil": significa que el plazo calculado puede salir corto.
   const cobertura = calendar.annualDataYears;
   if (cobertura && !cobertura.includes(year(date))) {
+    // Un array vacío no es lo mismo que no declarar nada: significa "este
+    // calendario depende de datos anuales y no tenemos ninguno", así que avisa
+    // siempre. No declarar el campo es para calendarios que no dependen de
+    // publicaciones anuales.
+    const disponibles = cobertura.length === 0 ? 'ninguno' : cobertura.join(', ');
     warnings.push(
-      `El calendario "${calendar.id}" no tiene cargados los datos que se publican cada año (vacaciones y acuerdos de suspensión) para ${year(date)}. Años disponibles: ${cobertura.join(', ')}. El resultado puede omitir días inhábiles.`,
+      `El calendario "${calendar.id}" no tiene cargados los datos que se publican cada año para ${year(date)}. Años disponibles: ${disponibles}. El resultado puede omitir días inhábiles.`,
     );
   }
 

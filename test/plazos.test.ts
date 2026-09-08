@@ -95,6 +95,33 @@ test('avisa cuando se pregunta por un año sin datos anuales cargados', () => {
   assert.ok(!ok.warnings.some((w) => w.includes('datos que se publican')));
 });
 
+test('un calendario sin ningún año cargado advierte siempre', () => {
+  // mx-laboral declara annualDataYears: [] — depende de las jornadas
+  // electorales y no tenemos ninguna. Es distinto de omitir el campo, que
+  // significa "este calendario no depende de datos anuales".
+  for (const fecha of ['2026-06-03', '2027-06-03']) {
+    const r = explainDay(fecha, laboral);
+    assert.ok(
+      r.warnings.some((w) => w.includes('Años disponibles: ninguno')),
+      `sin advertencia en ${fecha}`,
+    );
+  }
+
+  // Los calendarios que no dependen de datos anuales no deben advertir nada:
+  // el aviso perdería valor si apareciera siempre y en todas partes.
+  const propio = {
+    calendar: {
+      id: 'demo',
+      name: 'demo',
+      jurisdiction: 'MX',
+      description: 'sin datos anuales',
+      source: 'ninguna',
+      rules: [],
+    },
+  } as const;
+  assert.deepEqual(explainDay('2027-06-03', propio).warnings, []);
+});
+
 const tieneRegla = (r: { reasons: Array<{ ruleId: string }> }, frag: string) =>
   r.reasons.some((x) => x.ruleId.includes(frag));
 
