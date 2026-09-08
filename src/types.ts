@@ -6,6 +6,24 @@ import type { CivilDate } from './date.ts';
  * caso a alguien, la pregunta inmediata es "¿de dónde salió este día?" y la
  * respuesta tiene que estar en la respuesta, no en el README.
  */
+/**
+ * Identificador de un tipo de trámite.
+ *
+ * Existe porque "¿es día hábil?" no siempre tiene una sola respuesta dentro del
+ * mismo calendario. El CFF art. 12 es el caso claro: las vacaciones generales
+ * del SAT suspenden los plazos en general, pero NO los de presentación de
+ * declaraciones y pago de contribuciones, que siguen corriendo.
+ */
+export type TramiteId = string;
+
+/** Trámite que un calendario distingue, con la norma que lo justifica. */
+export interface Tramite {
+  id: TramiteId;
+  label: string;
+  source: string;
+  url?: string;
+}
+
 export interface RuleBase {
   /** Identificador estable. Aparece en los resultados; no lo cambies a la ligera. */
   id: string;
@@ -24,6 +42,12 @@ export interface RuleBase {
   since?: number;
   /** Último año en que aplica (inclusive). */
   until?: number;
+  /**
+   * Trámites a los que esta regla NO aplica. Si se consulta uno de ellos, la
+   * regla se descarta y el resultado lo reporta en `setAside` — el día sigue
+   * teniendo explicación, solo que la explicación es por qué NO contó.
+   */
+  exceptFor?: TramiteId[];
 }
 
 /** Días de la semana no laborables. 0 = domingo ... 6 = sábado. */
@@ -110,6 +134,33 @@ export interface Calendar {
    * Si un calendario no depende de publicaciones anuales, omite el campo.
    */
   annualDataYears?: number[];
+  /** Trámites que este calendario distingue. Omitir si no distingue ninguno. */
+  tramites?: Tramite[];
+  /**
+   * Prórrogas que no dependen de que el día sea inhábil, sino del día de la
+   * semana en que cae el vencimiento y del trámite de que se trate.
+   */
+  extensions?: WeekdayExtension[];
+}
+
+/**
+ * Prórroga por día de la semana, atada a un trámite.
+ *
+ * El caso que la motiva es el último párrafo del CFF art. 12: si el último día
+ * del plazo para pagar contribuciones ante instituciones de crédito cae en
+ * viernes, el plazo se prorroga al siguiente día hábil — aunque ese viernes sea
+ * perfectamente hábil.
+ */
+export interface WeekdayExtension {
+  id: string;
+  label: string;
+  source: string;
+  url?: string;
+  verified: boolean;
+  /** Solo aplica a estos trámites. */
+  onlyFor: TramiteId[];
+  /** Días de la semana que disparan la prórroga. 0 = domingo ... 6 = sábado. */
+  weekdays: number[];
 }
 
 export interface CalendarOptions {
@@ -119,6 +170,11 @@ export interface CalendarOptions {
   extraNonBusiness?: CivilDate[];
   /** Fechas a forzar como hábiles, aunque alguna regla diga lo contrario. */
   extraBusiness?: CivilDate[];
+  /**
+   * Tipo de trámite, cuando el calendario distingue alguno. Sin él se aplica el
+   * régimen general, que es el más restrictivo.
+   */
+  tramite?: TramiteId;
 }
 
 export interface DayResult {
@@ -126,6 +182,14 @@ export interface DayResult {
   isBusinessDay: boolean;
   /** Vacío si el día es hábil. */
   reasons: Reason[];
+  /**
+   * Reglas que habrían hecho inhábil el día, pero que no aplican al trámite
+   * consultado. Vacío cuando no se pidió un trámite.
+   *
+   * Sin esto, un día hábil no tendría explicación y el usuario no podría
+   * distinguir "no había ninguna regla" de "la regla no aplica a tu caso".
+   */
+  setAside: Reason[];
   /** Reglas sin verificar que influyeron en este resultado. */
   warnings: string[];
 }

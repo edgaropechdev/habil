@@ -33,6 +33,35 @@ export const mxFiscal: Calendar = {
   source: CFF,
   url: URL_CFF,
   annualDataYears: [2026],
+  tramites: [
+    {
+      id: 'declaracion-pago',
+      label: 'Presentación de declaraciones y pago de contribuciones',
+      source: `${CFF}, segundo párrafo`,
+      url: URL_CFF,
+    },
+    {
+      id: 'pago-bancario',
+      label: 'Pago de contribuciones ante instituciones de crédito autorizadas',
+      source: `${CFF}, párrafos segundo y quinto`,
+      url: URL_CFF,
+    },
+  ],
+  extensions: [
+    {
+      // "También se prorrogará el plazo hasta el siguiente día hábil, cuando sea
+      // viernes el último día del plazo en que se deba realizar el pago de
+      // contribuciones, ante las instituciones de crédito autorizadas."
+      id: 'mx-fiscal:prorroga-viernes-pago-bancario',
+      label:
+        'El último día del plazo cae en viernes y el pago se hace ante instituciones de crédito autorizadas',
+      onlyFor: ['pago-bancario'],
+      weekdays: [5],
+      source: `${CFF}, quinto párrafo (reformado DOF 12-11-2021)`,
+      url: URL_CFF,
+      verified: false,
+    },
+  ],
   rules: [
     {
       kind: 'weekday',
@@ -144,10 +173,9 @@ export const mxFiscal: Calendar = {
       verified: false,
     },
     {
-      // OJO con la excepción del segundo párrafo del artículo 12: estos días NO
-      // son inhábiles para plazos de presentación de declaraciones y pago de
-      // contribuciones, donde sí se cuentan. El motor todavía no distingue por
-      // tipo de trámite, así que para esos plazos este resultado sobra un día.
+      // El segundo párrafo del artículo 12 exceptúa expresamente los plazos de
+      // presentación de declaraciones y pago de contribuciones: durante las
+      // vacaciones generales esos días SÍ se cuentan. De ahí el `exceptFor`.
       //
       // Al 8 de septiembre de 2026 solo se ha publicado el primer periodo; el
       // segundo se suele dar a conocer en diciembre.
@@ -157,6 +185,7 @@ export const mxFiscal: Calendar = {
       ranges: [{ from: '2026-07-20', to: '2026-07-31' }],
       since: 2026,
       until: 2026,
+      exceptFor: ['declaracion-pago', 'pago-bancario'],
       source:
         'Regla 2.1.6 de la Resolución Miscelánea Fiscal para 2026, reformada por la Primera Resolución de Modificaciones (DOF 09-07-2026)',
       url: 'https://www.sat.gob.mx',

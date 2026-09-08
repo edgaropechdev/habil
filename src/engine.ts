@@ -11,7 +11,14 @@ import {
   year,
   type CivilDate,
 } from './date.ts';
-import type { Calendar, CalendarOptions, DayResult, Reason, Rule } from './types.ts';
+import type {
+  Calendar,
+  CalendarOptions,
+  DayResult,
+  Reason,
+  Rule,
+  TramiteId,
+} from './types.ts';
 
 /** Guardia contra plazos absurdos que colgarían el proceso. */
 const MAX_ITERATIONS = 20_000;
@@ -65,14 +72,21 @@ export function evaluateDay(
   date: CivilDate,
   calendar: Calendar,
   extra: { nonBusiness: Set<CivilDate>; business: Set<CivilDate> },
+  tramite?: TramiteId,
 ): DayResult {
   if (extra.business.has(date)) {
-    return { date, isBusinessDay: true, reasons: [], warnings: [] };
+    return { date, isBusinessDay: true, reasons: [], setAside: [], warnings: [] };
   }
 
   const reasons: Reason[] = [];
+  const setAside: Reason[] = [];
   for (const rule of calendar.rules) {
-    if (ruleMatches(rule, date)) reasons.push(toReason(rule));
+    if (!ruleMatches(rule, date)) continue;
+    if (tramite !== undefined && rule.exceptFor?.includes(tramite)) {
+      setAside.push(toReason(rule));
+      continue;
+    }
+    reasons.push(toReason(rule));
   }
   if (extra.nonBusiness.has(date)) {
     reasons.push({
@@ -83,7 +97,7 @@ export function evaluateDay(
     });
   }
 
-  const warnings = reasons
+  const warnings = [...reasons, ...setAside]
     .filter((r) => !r.verified)
     .map((r) => `Regla sin verificar contra fuente primaria: ${r.ruleId} (${r.source})`);
 
@@ -96,13 +110,26 @@ export function evaluateDay(
     );
   }
 
-  return { date, isBusinessDay: reasons.length === 0, reasons, warnings };
+  return { date, isBusinessDay: reasons.length === 0, reasons, setAside, warnings };
 }
 
 /** Contexto reutilizable, para no re-resolver el calendario en cada iteración. */
 export interface Context {
   calendar: Calendar;
   extra: { nonBusiness: Set<CivilDate>; business: Set<CivilDate> };
+  tramite?: TramiteId;
+}
+
+export class UnknownTramiteError extends Error {
+  constructor(id: string, calendar: Calendar) {
+    const known = (calendar.tramites ?? []).map((t) => t.id);
+    super(
+      known.length === 0
+        ? `El calendario "${calendar.id}" no distingue trámites, pero se pidió "${id}".`
+        : `Trámite desconocido: "${id}" en el calendario "${calendar.id}". Disponibles: ${known.join(', ')}.`,
+    );
+    this.name = 'UnknownTramiteError';
+  }
 }
 
 export function buildContext(
@@ -111,17 +138,22 @@ export function buildContext(
 ): Context {
   const calendar =
     typeof options.calendar === 'string' ? resolve(options.calendar) : options.calendar;
+  const tramite = options.tramite;
+  if (tramite !== undefined && !(calendar.tramites ?? []).some((t) => t.id === tramite)) {
+    throw new UnknownTramiteError(tramite, calendar);
+  }
   return {
     calendar,
     extra: {
       nonBusiness: new Set((options.extraNonBusiness ?? []).map(parseDate)),
       business: new Set((options.extraBusiness ?? []).map(parseDate)),
     },
+    tramite,
   };
 }
 
 export function isBusinessDayIn(date: CivilDate, ctx: Context): boolean {
-  return evaluateDay(date, ctx.calendar, ctx.extra).isBusinessDay;
+  return evaluateDay(date, ctx.calendar, ctx.extra, ctx.tramite).isBusinessDay;
 }
 
 /**
@@ -138,7 +170,7 @@ export function seekBusinessDay(
   const skipped: DayResult[] = [];
   let cursor = includeStart ? date : addDays(date, step);
   for (let i = 0; i < MAX_ITERATIONS; i++) {
-    const result = evaluateDay(cursor, ctx.calendar, ctx.extra);
+    const result = evaluateDay(cursor, ctx.calendar, ctx.extra, ctx.tramite);
     if (result.isBusinessDay) return { date: cursor, skipped };
     skipped.push(result);
     cursor = addDays(cursor, step);

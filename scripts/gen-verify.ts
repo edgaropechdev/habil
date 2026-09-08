@@ -7,7 +7,9 @@
 import { listCalendars } from '../src/index.ts';
 
 const cals = listCalendars();
-const all = cals.flatMap((c) => c.rules);
+// Las prórrogas por día de la semana también llevan `verified` y también pueden
+// mover un vencimiento, así que entran al checklist igual que las reglas.
+const all = cals.flatMap((c) => [...c.rules, ...(c.extensions ?? [])]);
 const pending = all.filter((r) => !r.verified).length;
 
 const out: string[] = [];
@@ -43,6 +45,7 @@ out.push(
 );
 
 const RIESGO = /nthWeekday|periodic|dates|ranges/;
+const DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
 
 for (const cal of cals) {
   out.push(`## \`${cal.id}\` — ${cal.name}`);
@@ -83,6 +86,33 @@ for (const cal of cals) {
     out.push(`| ${r.verified ? '✅' : '☐'} | ${flag}\`${r.id}\` | ${r.label} | ${check} |`);
   }
   out.push('');
+
+  const exts = cal.extensions ?? [];
+  if (exts.length > 0) {
+    out.push(`### Prórrogas por día de la semana en \`${cal.id}\``);
+    out.push('');
+    out.push('| ✔ | Regla | Trámites a los que aplica | Verificar que… |');
+    out.push('|---|---|---|---|');
+    for (const e of exts) {
+      const dias = e.weekdays.map((d) => DIAS[d]).join(', ');
+      out.push(
+        `| ${e.verified ? '✅' : '☐'} | 🔍 \`${e.id}\` | ${e.onlyFor.join(', ')} | la fuente prorrogue el plazo cuando el último día caiga en ${dias}, y solo para esos trámites |`,
+      );
+    }
+    out.push('');
+  }
+
+  const tramites = cal.tramites ?? [];
+  if (tramites.length > 0) {
+    out.push(`### Trámites que distingue \`${cal.id}\``);
+    out.push('');
+    out.push('| id | Qué es | Fuente |');
+    out.push('|---|---|---|');
+    for (const t of tramites) {
+      out.push(`| \`${t.id}\` | ${t.label} | ${t.source} |`);
+    }
+    out.push('');
+  }
 }
 
 out.push('## Bitácora de verificación');

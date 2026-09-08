@@ -12,6 +12,7 @@ import {
   previousBusinessDay,
   rollForward,
   UnknownCalendarError,
+  UnknownTramiteError,
 } from '../src/index.ts';
 
 const fiscal = { calendar: 'mx-fiscal' } as const;
@@ -250,4 +251,78 @@ test('un calendario inexistente falla con un mensaje útil', () => {
     assert.match(e.message, /mx-fiscal/); // sugiere los disponibles
     return true;
   });
+});
+
+// --- Trámites (CFF art. 12) ---------------------------------------------
+
+const declaracion = { calendar: 'mx-fiscal', tramite: 'declaracion-pago' } as const;
+const pagoBancario = { calendar: 'mx-fiscal', tramite: 'pago-bancario' } as const;
+
+test('las vacaciones del SAT no suspenden los plazos de declaración y pago', () => {
+  // Segundo párrafo del art. 12: durante las vacaciones generales esos días sí
+  // se cuentan. Sin el trámite se aplica el régimen general, más restrictivo.
+  assert.equal(isBusinessDay('2026-07-22', fiscal), false);
+  assert.equal(isBusinessDay('2026-07-22', declaracion), true);
+  assert.equal(isBusinessDay('2026-07-22', pagoBancario), true);
+});
+
+test('un día hábil por excepción explica qué regla se descartó', () => {
+  // Un "hábil" sin explicación no sirve: hay que poder distinguir "no había
+  // regla" de "la regla no aplica a tu trámite".
+  const r = explainDay('2026-07-22', declaracion);
+  assert.equal(r.isBusinessDay, true);
+  assert.deepEqual(r.reasons, []);
+  assert.equal(r.setAside.length, 1);
+  assert.equal(r.setAside[0]?.ruleId, 'mx-fiscal:vacaciones-sat-2026');
+  assert.match(r.setAside[0]?.source ?? '', /Resolución Miscelánea/);
+
+  // Y sigue advirtiendo que la regla descartada no está verificada.
+  assert.ok(r.warnings.some((w) => w.includes('vacaciones-sat-2026')));
+
+  // Sin trámite no hay nada descartado, y el día es inhábil.
+  const g = explainDay('2026-07-22', fiscal);
+  assert.equal(g.isBusinessDay, false);
+  assert.deepEqual(g.setAside, []);
+});
+
+test('el pago bancario que vence en viernes se prorroga al siguiente hábil', () => {
+  // Último párrafo del art. 12. El viernes es hábil; la prórroga no viene de
+  // que el día sea inhábil sino del día de la semana y del trámite.
+  assert.equal(isBusinessDay('2026-09-11', fiscal), true); // viernes hábil
+
+  const sin = deadline({ from: '2026-09-04', amount: 7, unit: 'naturales', ...fiscal });
+  assert.equal(sin.date, '2026-09-11');
+  assert.equal(sin.extendedBy, undefined);
+
+  const con = deadline({ from: '2026-09-04', amount: 7, unit: 'naturales', ...pagoBancario });
+  assert.equal(con.date, '2026-09-14'); // lunes
+  assert.equal(con.rolledForwardFrom, '2026-09-11');
+  assert.equal(con.extendedBy?.ruleId, 'mx-fiscal:prorroga-viernes-pago-bancario');
+  assert.match(con.extendedBy?.source ?? '', /quinto párrafo/);
+
+  // La prórroga solo aplica a ese trámite, no a cualquier plazo fiscal.
+  const otro = deadline({ from: '2026-09-04', amount: 7, unit: 'naturales', ...declaracion });
+  assert.equal(otro.date, '2026-09-11');
+});
+
+test('un trámite desconocido falla con un mensaje útil', () => {
+  assert.throws(
+    () => isBusinessDay('2026-01-01', { calendar: 'mx-fiscal', tramite: 'inventado' }),
+    (e: Error) => {
+      assert.ok(e instanceof UnknownTramiteError);
+      assert.match(e.message, /declaracion-pago/); // sugiere los disponibles
+      return true;
+    },
+  );
+});
+
+test('pedir un trámite a un calendario que no los distingue falla', () => {
+  assert.throws(
+    () => isBusinessDay('2026-01-01', { calendar: 'mx-laboral', tramite: 'declaracion-pago' }),
+    (e: Error) => {
+      assert.ok(e instanceof UnknownTramiteError);
+      assert.match(e.message, /no distingue trámites/);
+      return true;
+    },
+  );
 });

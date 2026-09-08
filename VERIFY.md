@@ -10,7 +10,7 @@ Mientras una regla siga sin verificar, todo resultado que dependa de ella incluy
 `warning`. Eso es intencional: preferimos que la librería se vea incompleta a que
 alguien pierda un plazo confiando en un dato que nadie revisó.
 
-**Estado actual: 0 de 37 reglas verificadas.**
+**Estado actual: 0 de 38 reglas verificadas.**
 
 ## Cómo verificar una regla
 
@@ -43,6 +43,19 @@ Fuente: Código Fiscal de la Federación, artículo 12 — <https://www.diputado
 | ☐ | 🔍 `mx-fiscal:12-01-sexenal` | 1 de diciembre de cada 6 años, por transmisión del Poder Ejecutivo Federal | el ciclo de 6 años y el año ancla 2018 sean correctos |
 | ☐ | `mx-fiscal:12-25` | 25 de diciembre | la fuente use la fecha FIJA 25/12 y no la recorra a un lunes |
 | ☐ | 🔍 `mx-fiscal:vacaciones-sat-2026` | Primer periodo general de vacaciones del SAT en 2026 | los 1 periodos correspondan al acuerdo publicado |
+
+### Prórrogas por día de la semana en `mx-fiscal`
+
+| ✔ | Regla | Trámites a los que aplica | Verificar que… |
+|---|---|---|---|
+| ☐ | 🔍 `mx-fiscal:prorroga-viernes-pago-bancario` | pago-bancario | la fuente prorrogue el plazo cuando el último día caiga en viernes, y solo para esos trámites |
+
+### Trámites que distingue `mx-fiscal`
+
+| id | Qué es | Fuente |
+|---|---|---|
+| `declaracion-pago` | Presentación de declaraciones y pago de contribuciones | Código Fiscal de la Federación, artículo 12, segundo párrafo |
+| `pago-bancario` | Pago de contribuciones ante instituciones de crédito autorizadas | Código Fiscal de la Federación, artículo 12, párrafos segundo y quinto |
 
 ## `mx-laboral` — México — días de descanso obligatorio (LFT)
 
