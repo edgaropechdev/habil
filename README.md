@@ -3,7 +3,7 @@
 **Días hábiles y plazos legales en México — con el fundamento de cada día.**
 
 [![npm](https://img.shields.io/npm/v/habil.svg)](https://www.npmjs.com/package/habil)
-[![tests](https://img.shields.io/badge/tests-32%20passing-brightgreen)](#pruebas)
+[![tests](https://img.shields.io/badge/tests-35%20passing-brightgreen)](#pruebas)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 Cero dependencias · TypeScript · Node ≥ 20
@@ -20,11 +20,12 @@ $ npx habil 2026-11-20
   mx-fiscal              hábil
   mx-laboral             hábil
   mx-judicial-federal    inhábil
-                         └ 20 de noviembre
-                           Ley Orgánica del Poder Judicial de la Federación, artículo 229
+                         └ 20 de noviembre (fecha fija; el CFF y la LFT lo recorren al tercer lunes)
+                           Ley de Amparo, artículo 19
 ```
 
-Y el lunes anterior, que no conmemora nada en particular, es exactamente al revés:
+Para el SAT sí; ante un juzgado federal no. Y el lunes anterior es inhábil para los
+tres — pero cada uno por un fundamento distinto:
 
 ```
 $ npx habil 2026-11-16
@@ -35,23 +36,32 @@ $ npx habil 2026-11-16
   mx-laboral             inhábil
                          └ Tercer lunes de noviembre, en conmemoración del 20 de noviembre
                            Ley Federal del Trabajo, artículo 74
-  mx-judicial-federal    hábil
+  mx-judicial-federal    inhábil
+                         └ Tercer lunes de noviembre (día de descanso del personal del PJF)
+                           Acuerdo General del Pleno del CJF de organización y
+                           funcionamiento, artículo 6, fracción III
 ```
 
-Depende de para qué preguntes. El CFF y la LFT **recorren** el 20 de noviembre al
-tercer lunes; el Poder Judicial de la Federación usa la **fecha fija**. Son días
-distintos, y esa diferencia mueve vencimientos reales.
+O sea que en noviembre el SAT pierde **un** día y el Poder Judicial pierde **dos**,
+por normas que ni siquiera están en el mismo cuerpo legal. Esa diferencia mueve
+vencimientos reales.
 
 Casos como este es lo que hace `habil`:
 
 | Fecha | Fiscal (CFF) | Laboral (LFT) | Judicial (PJF) |
 |---|---|---|---|
-| 5 de mayo | **inhábil** | laborable | laborable |
+| 5 de mayo | **inhábil** | laborable | **inhábil** |
+| 12 de octubre | hábil | laborable | **inhábil** |
 | 20 de noviembre | hábil | laborable | **inhábil** |
-| Tercer lunes de noviembre | **inhábil** | **descanso** | hábil |
+| Tercer lunes de noviembre | **inhábil** | **descanso** | **inhábil** |
 | 5 de febrero (si no es lunes) | hábil | laborable | **inhábil** |
 | 14 de septiembre | hábil | laborable | **inhábil** |
+| 20 al 31 de julio de 2026 | **inhábil** | laborable | parcialmente |
 | 1 de octubre de cada 6 años | hábil | **descanso** | hábil |
+
+Noviembre es el mes que mejor resume el problema: el CFF y la LFT pierden **el
+tercer lunes**, el PJF pierde **ese lunes y además el día 20**, y las tres cosas
+tienen fundamentos distintos.
 
 Las librerías de festivos te dan un calendario plano. `habil` modela **la semántica**:
 qué cuenta como hábil, para qué trámite, y bajo qué artículo.
@@ -207,11 +217,35 @@ que corre en cualquier VPS o plataforma.
 |---|---|---|
 | `mx-fiscal` | Plazos ante autoridades fiscales federales | CFF art. 12 |
 | `mx-laboral` | Días de descanso obligatorio | LFT art. 74 |
-| `mx-judicial-federal` | Plazos ante órganos del PJF | LOPJF art. 229 y acuerdos del CJF |
+| `mx-judicial-federal` | Plazos ante órganos del PJF | Ley de Amparo art. 19, LOPJF art. 229 y circulares del OAJ |
 
 `mx-laboral` **no** excluye sábados y domingos: el descanso semanal es el artículo 69
 y depende de la jornada de cada centro de trabajo. Si tu caso los excluye, agrégalos
 con `extraNonBusiness`.
+
+En `mx-judicial-federal` la fuente principal es la **Ley de Amparo art. 19**, no la
+LOPJF: el amparo es el procedimiento más común ante el PJF y su lista de días es más
+amplia. El art. 19 incluye el 5 de mayo, el 12 de octubre y el 25 de diciembre, que
+el art. 229 de la LOPJF no menciona.
+
+### Datos que se publican cada año
+
+Los periodos vacacionales y las suspensiones de labores no están en la ley: se
+publican por acuerdo o circular, cada año. Un calendario declara con
+`annualDataYears` para qué años los tiene cargados, y el motor **avisa cuando le
+preguntas por un año que no cubre**:
+
+```ts
+explainDay('2027-07-22', { calendar: 'mx-judicial-federal' }).warnings;
+// ['El calendario "mx-judicial-federal" no tiene cargados los datos que se
+//   publican cada año (vacaciones y acuerdos de suspensión) para 2027.
+//   Años disponibles: 2026. El resultado puede omitir días inhábiles.']
+```
+
+El aviso aparece **aunque el día salga hábil**, que es justo el caso peligroso: un
+día que en realidad era inhábil hace que el plazo calculado salga corto.
+
+Cargados hoy: **2026** en `mx-fiscal` y en `mx-judicial-federal`.
 
 ---
 
@@ -227,13 +261,14 @@ r.warnings;
 // ['Regla sin verificar contra fuente primaria: mx-fiscal:12-25 (Código Fiscal...)']
 ```
 
-Faltan además datos que se publican cada año y que **no se inventaron a propósito**:
-vacaciones generales del SAT, periodos vacacionales y suspensiones de labores del PJF,
-y jornadas electorales.
+Las 37 reglas ya se contrastaron una vez contra el texto vigente de sus fuentes, y
+esa pasada corrigió errores de fondo (ver el historial). Pero **contrastar no es
+firmar**: `verified` solo pasa a `true` cuando una persona lo confirma y anota su
+nombre en la bitácora de [VERIFY.md](VERIFY.md). Ahí está el checklist, y sigue
+siendo la mejor primera contribución al proyecto.
 
-Verificar las 32 reglas es un par de horas de trabajo con los textos a la mano.
-El checklist está en [VERIFY.md](VERIFY.md) y es la mejor primera contribución
-al proyecto.
+Datos anuales cargados: 2026. Sigue faltando el segundo periodo vacacional del SAT
+(se publica en diciembre) y las jornadas electorales locales del `mx-laboral`.
 
 **No uses esto para calcular un plazo real hasta que la regla que te importa esté
 verificada.** Es software MIT sin garantía y no sustituye asesoría legal ni fiscal.
@@ -243,7 +278,7 @@ verificada.** Es software MIT sin garantía y no sustituye asesoría legal ni fi
 ## Pruebas
 
 ```bash
-npm test        # 32 pruebas, sin dependencias
+npm test        # 35 pruebas, sin dependencias
 npm run build   # compila a dist/
 ```
 
@@ -255,7 +290,9 @@ de años bisiestos y cambios de horario, y los extremos de conteo de plazos.
 ## Hoja de ruta
 
 - [ ] Verificar las reglas existentes contra fuente primaria
-- [ ] Cargar vacaciones del SAT y acuerdos del CJF por año
+- [x] Cargar vacaciones del SAT y acuerdos del OAJ/CJF por año — hecho 2026
+- [ ] Cargar 2027 y el segundo periodo vacacional del SAT
+- [ ] Distinguir por tipo de trámite (CFF art. 12 exceptúa declaraciones y pagos)
 - [ ] Calendarios estatales (juzgados locales)
 - [ ] Plazos con nombre: `deadline({ tipo: 'recurso-de-revocacion' })`
 - [ ] Argentina y Colombia

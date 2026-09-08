@@ -99,6 +99,17 @@ export interface Calendar {
   source: string;
   url?: string;
   rules: Rule[];
+  /**
+   * Años para los que ya se cargaron los datos que la autoridad publica cada
+   * año (vacaciones generales, acuerdos de suspensión de labores).
+   *
+   * Fuera de estos años el calendario está incompleto y el motor lo advierte en
+   * `warnings`, incluso cuando el veredicto sea "hábil" — que es justo el caso
+   * peligroso: un día que en realidad era inhábil y acorta el plazo calculado.
+   *
+   * Si un calendario no depende de publicaciones anuales, omite el campo.
+   */
+  annualDataYears?: number[];
 }
 
 export interface CalendarOptions {

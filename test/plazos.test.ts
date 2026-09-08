@@ -39,7 +39,9 @@ test('DIVERGENCIA: el 20 de noviembre se recorre al lunes salvo en el PJF', () =
 
   assert.equal(isBusinessDay('2026-11-16', fiscal), false); // tercer lunes
   assert.equal(isBusinessDay('2026-11-16', laboral), false);
-  assert.equal(isBusinessDay('2026-11-16', judicial), true);
+  // El PJF pierde LOS DOS días: la fecha fija por la Ley de Amparo y el lunes
+  // recorrido porque su personal descansa los lunes del art. 74 de la LFT.
+  assert.equal(isBusinessDay('2026-11-16', judicial), false);
 });
 
 test('el PJF descansa el 14 de septiembre y los demás calendarios no', () => {
@@ -55,11 +57,41 @@ test('DIVERGENCIA: 5 de mayo es inhábil fiscal pero no descanso obligatorio', (
   assert.equal(isBusinessDay('2026-05-05', laboral), true);
 });
 
-test('DIVERGENCIA: el judicial usa fechas fijas, no lunes recorridos', () => {
+test('DIVERGENCIA: el judicial pierde la fecha fija Y el lunes recorrido', () => {
   assert.equal(isBusinessDay('2026-02-05', judicial), false); // jueves 5 de febrero
-  assert.equal(isBusinessDay('2026-02-05', laboral), true);
+  assert.equal(isBusinessDay('2026-02-05', laboral), true); // la LFT lo recorrió
   assert.equal(isBusinessDay('2026-02-02', laboral), false); // primer lunes
-  assert.equal(isBusinessDay('2026-02-02', judicial), true);
+  assert.equal(isBusinessDay('2026-02-02', judicial), false); // también descansa
+  assert.equal(isBusinessDay('2026-02-02', fiscal), false);
+});
+
+test('el PJF descansa el 5 de mayo y el 12 de octubre por la Ley de Amparo', () => {
+  // Ninguno de los dos está en el art. 229 de la LOPJF; ambos sí en el art. 19
+  // de la Ley de Amparo, que es la fuente operativa para plazos de amparo.
+  assert.equal(isBusinessDay('2026-10-12', judicial), false); // lunes
+  assert.equal(isBusinessDay('2026-10-12', fiscal), true);
+  assert.equal(isBusinessDay('2026-05-05', judicial), false); // martes
+  assert.equal(isBusinessDay('2026-05-05', fiscal), false); // el CFF también
+  assert.equal(isBusinessDay('2026-05-05', laboral), true); // la LFT no
+});
+
+test('los periodos vacacionales y las suspensiones cargadas cuentan como inhábiles', () => {
+  assert.equal(isBusinessDay('2026-07-20', judicial), false); // periodo de julio
+  assert.equal(isBusinessDay('2026-07-20', fiscal), false); // vacaciones del SAT
+  assert.equal(isBusinessDay('2026-07-16', fiscal), true); // el SAT arranca el 20
+  assert.equal(isBusinessDay('2026-07-16', judicial), false); // el PJF, el 16
+  assert.equal(isBusinessDay('2026-04-02', judicial), false); // suspensión por circular
+});
+
+test('avisa cuando se pregunta por un año sin datos anuales cargados', () => {
+  // El caso peligroso es el veredicto "hábil": un plazo puede salir corto.
+  const r = explainDay('2027-07-22', judicial);
+  assert.equal(r.isBusinessDay, true);
+  assert.ok(r.warnings.some((w) => w.includes('2027') && w.includes('datos que se publican')));
+
+  // Y no molesta en los años que sí están cargados.
+  const ok = explainDay('2026-09-08', judicial);
+  assert.ok(!ok.warnings.some((w) => w.includes('datos que se publican')));
 });
 
 const tieneRegla = (r: { reasons: Array<{ ruleId: string }> }, frag: string) =>

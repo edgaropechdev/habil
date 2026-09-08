@@ -87,6 +87,15 @@ export function evaluateDay(
     .filter((r) => !r.verified)
     .map((r) => `Regla sin verificar contra fuente primaria: ${r.ruleId} (${r.source})`);
 
+  // Un "hábil" sobre un año sin datos cargados es más peligroso que un
+  // "inhábil": significa que el plazo calculado puede salir corto.
+  const cobertura = calendar.annualDataYears;
+  if (cobertura && !cobertura.includes(year(date))) {
+    warnings.push(
+      `El calendario "${calendar.id}" no tiene cargados los datos que se publican cada año (vacaciones y acuerdos de suspensión) para ${year(date)}. Años disponibles: ${cobertura.join(', ')}. El resultado puede omitir días inhábiles.`,
+    );
+  }
+
   return { date, isBusinessDay: reasons.length === 0, reasons, warnings };
 }
 

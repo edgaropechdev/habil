@@ -32,6 +32,7 @@ export const mxFiscal: Calendar = {
     'Días que no se cuentan en plazos fijados en días ante autoridades fiscales federales. No aplica a plazos laborales ni judiciales.',
   source: CFF,
   url: URL_CFF,
+  annualDataYears: [2026],
   rules: [
     {
       kind: 'weekday',
@@ -143,13 +144,21 @@ export const mxFiscal: Calendar = {
       verified: false,
     },
     {
-      kind: 'dates',
-      id: 'mx-fiscal:vacaciones-generales-sat',
-      label: 'Vacaciones generales de las autoridades fiscales federales',
-      // Se publican cada año. Sin datos hasta que alguien los verifique
-      // contra la publicación oficial: inventarlos sería peor que no tenerlos.
-      dates: [],
-      source: `${CFF}, segundo párrafo — periodos publicados anualmente por el SAT`,
+      // OJO con la excepción del segundo párrafo del artículo 12: estos días NO
+      // son inhábiles para plazos de presentación de declaraciones y pago de
+      // contribuciones, donde sí se cuentan. El motor todavía no distingue por
+      // tipo de trámite, así que para esos plazos este resultado sobra un día.
+      //
+      // Al 8 de septiembre de 2026 solo se ha publicado el primer periodo; el
+      // segundo se suele dar a conocer en diciembre.
+      kind: 'ranges',
+      id: 'mx-fiscal:vacaciones-sat-2026',
+      label: 'Primer periodo general de vacaciones del SAT en 2026',
+      ranges: [{ from: '2026-07-20', to: '2026-07-31' }],
+      since: 2026,
+      until: 2026,
+      source:
+        'Regla 2.1.6 de la Resolución Miscelánea Fiscal para 2026, reformada por la Primera Resolución de Modificaciones (DOF 09-07-2026)',
       url: 'https://www.sat.gob.mx',
       verified: false,
     },
