@@ -11,6 +11,7 @@ import {
   eachDay,
   parseDate,
   today,
+  weekday,
   type CivilDate,
 } from './date.ts';
 import {
@@ -23,7 +24,7 @@ import {
   type Context,
 } from './engine.ts';
 import { getCalendar, listCalendars } from './calendars/index.ts';
-import type { CalendarOptions, DayResult } from './types.ts';
+import type { CalendarOptions, DayResult, Reason } from './types.ts';
 
 export * from './types.ts';
 export {
@@ -44,6 +45,7 @@ export {
   UnknownCalendarError,
 } from './calendars/index.ts';
 export { InvalidDateError } from './date.ts';
+export { UnknownTramiteError } from './engine.ts';
 
 function ctx(options: CalendarOptions): Context {
   return buildContext(options, getCalendar);
@@ -61,7 +63,7 @@ export function isBusinessDay(date: CivilDate, options: CalendarOptions): boolea
 /** Igual que `isBusinessDay`, pero explicando qué reglas aplicaron. */
 export function explainDay(date: CivilDate, options: CalendarOptions): DayResult {
   const c = ctx(options);
-  return evaluateDay(parseDate(date), c.calendar, c.extra);
+  return evaluateDay(parseDate(date), c.calendar, c.extra, c.tramite);
 }
 
 /** Siguiente día hábil estrictamente posterior a `date`. */
@@ -156,8 +158,13 @@ export interface DeadlineResult {
   countingStartsOn: CivilDate;
   /** Días inhábiles saltados durante el cómputo, con su razón. */
   skipped: DayResult[];
-  /** Fecha antes de prorrogar, si hubo prórroga por caer en inhábil. */
+  /** Fecha antes de prorrogar, si hubo prórroga. */
   rolledForwardFrom?: CivilDate;
+  /**
+   * Prórroga que no vino de un día inhábil sino del día de la semana y el
+   * trámite. Ver `WeekdayExtension`.
+   */
+  extendedBy?: Reason;
   /** Días naturales totales entre el inicio y el vencimiento. */
   calendarDays: number;
   /** Reglas sin verificar que influyeron en el resultado. */
@@ -203,6 +210,30 @@ export function deadline(input: DeadlineInput): DeadlineResult {
     }
   }
 
+  // Prórroga por día de la semana. No depende de que el día sea inhábil: un
+  // viernes perfectamente hábil se prorroga si el trámite es un pago ante
+  // instituciones de crédito (CFF art. 12, último párrafo).
+  let extendedBy: Reason | undefined;
+  const ext = (c.calendar.extensions ?? []).find(
+    (e) =>
+      c.tramite !== undefined &&
+      e.onlyFor.includes(c.tramite) &&
+      e.weekdays.includes(weekday(date)),
+  );
+  if (ext) {
+    const hop = seekBusinessDay(date, 1, c, false);
+    skipped.push(...hop.skipped);
+    extendedBy = {
+      ruleId: ext.id,
+      label: ext.label,
+      source: ext.source,
+      url: ext.url,
+      verified: ext.verified,
+    };
+    rolledForwardFrom ??= date;
+    date = hop.date;
+  }
+
   return {
     date,
     from,
@@ -212,10 +243,14 @@ export function deadline(input: DeadlineInput): DeadlineResult {
     countingStartsOn: addDays(from, 1),
     skipped,
     rolledForwardFrom,
+    extendedBy,
     calendarDays: spanInDays(from, date),
     warnings: dedupe([
       ...skipped.flatMap((s) => s.warnings),
-      ...evaluateDay(date, c.calendar, c.extra).warnings,
+      ...evaluateDay(date, c.calendar, c.extra, c.tramite).warnings,
+      ...(extendedBy && !extendedBy.verified
+        ? [`Regla sin verificar contra fuente primaria: ${extendedBy.ruleId} (${extendedBy.source})`]
+        : []),
     ]),
   };
 }
@@ -229,7 +264,7 @@ export function nonBusinessDaysOfYear(
   const out: DayResult[] = [];
   const y = String(yearNumber).padStart(4, '0');
   for (const day of eachDay(`${y}-01-01`, `${y}-12-31`)) {
-    const result = evaluateDay(day, c.calendar, c.extra);
+    const result = evaluateDay(day, c.calendar, c.extra, c.tramite);
     if (!result.isBusinessDay) out.push(result);
   }
   return out;

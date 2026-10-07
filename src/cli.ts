@@ -32,18 +32,21 @@ ${C.bold}habil${C.reset} — días hábiles y plazos legales en México
 ${C.bold}Opciones${C.reset}
   -c, --calendario <id>    mx-fiscal (predeterminado), mx-laboral, mx-judicial-federal
   -u, --unidad <u>         habiles (predeterminado) | naturales
+  -t, --tramite <id>       Tipo de trámite, cuando el calendario lo distingue
       --json               Salida en JSON, para tuberías y scripts
 
 ${C.bold}Ejemplos${C.reset}
   ${C.dim}habil dia 2026-11-20${C.reset}
   ${C.dim}habil plazo 2026-03-13 15 -c mx-fiscal${C.reset}
   ${C.dim}habil plazo 2026-12-23 30 -u naturales --json${C.reset}
+  ${C.dim}habil dia 2026-07-22 -t declaracion-pago${C.reset}
 `;
 
 interface Args {
   positional: string[];
   calendar: string;
   unit: 'habiles' | 'naturales';
+  tramite?: string;
   json: boolean;
 }
 
@@ -53,6 +56,7 @@ function parseArgs(argv: string[]): Args {
     const a = argv[i]!;
     if (a === '--json') out.json = true;
     else if (a === '-c' || a === '--calendario') out.calendar = argv[++i] ?? '';
+    else if (a === '-t' || a === '--tramite') out.tramite = argv[++i] ?? '';
     else if (a === '-u' || a === '--unidad') {
       const u = argv[++i];
       if (u !== 'habiles' && u !== 'naturales') throw new Error(`Unidad inválida: ${u}`);
@@ -69,7 +73,7 @@ function mark(ok: boolean): string {
 
 function printWarnings(warnings: string[]): void {
   if (warnings.length === 0) return;
-  console.log(`\n${C.yellow}⚠ Reglas sin verificar contra fuente primaria:${C.reset}`);
+  console.log(`\n${C.yellow}⚠ Advertencias:${C.reset}`);
   for (const w of warnings) console.log(`  ${C.dim}${w}${C.reset}`);
 }
 
@@ -93,7 +97,13 @@ function cmdPlazo(args: Args): void {
   const [, desde, dias] = args.positional;
   if (!desde || !dias) throw new Error('Uso: habil plazo <desde> <días>');
   const amount = Number(dias.replace(/^\+/, ''));
-  const r = deadline({ from: desde, amount, unit: args.unit, calendar: args.calendar });
+  const r = deadline({
+    from: desde,
+    amount,
+    unit: args.unit,
+    calendar: args.calendar,
+    tramite: args.tramite,
+  });
   if (args.json) return void console.log(JSON.stringify(r, null, 2));
 
   console.log(
@@ -104,7 +114,12 @@ function cmdPlazo(args: Args): void {
       `\n\n  ${C.bold}Vence el ${r.date}${C.reset}  ${C.dim}(${r.calendarDays} días naturales después)${C.reset}`,
   );
   if (r.rolledForwardFrom) {
-    console.log(`  ${C.dim}Prorrogado desde ${r.rolledForwardFrom}, que cayó en día inhábil${C.reset}`);
+    // La prórroga puede venir de un día inhábil o de una regla por día de la
+    // semana (art. 12, último párrafo), donde el día era perfectamente hábil.
+    const motivo = r.extendedBy
+      ? `${r.extendedBy.label}\n              ${r.extendedBy.source}`
+      : 'que cayó en día inhábil';
+    console.log(`  ${C.dim}Prorrogado desde ${r.rolledForwardFrom}: ${motivo}${C.reset}`);
   }
   if (r.skipped.length > 0) {
     console.log(`\n  ${C.dim}Días no contados:${C.reset}`);
@@ -118,7 +133,10 @@ function cmdPlazo(args: Args): void {
 function cmdEntre(args: Args): void {
   const [, desde, hasta] = args.positional;
   if (!desde || !hasta) throw new Error('Uso: habil entre <desde> <hasta>');
-  const n = businessDaysBetween(desde, hasta, { calendar: args.calendar });
+  const n = businessDaysBetween(desde, hasta, {
+    calendar: args.calendar,
+    tramite: args.tramite,
+  });
   if (args.json) {
     return void console.log(JSON.stringify({ desde, hasta, calendario: args.calendar, diasHabiles: n }));
   }
@@ -129,7 +147,10 @@ function cmdEntre(args: Args): void {
 function cmdAno(args: Args): void {
   const year = Number(args.positional[1]);
   if (!Number.isInteger(year)) throw new Error('Uso: habil año <año>');
-  const dias = nonBusinessDaysOfYear(year, { calendar: args.calendar });
+  const dias = nonBusinessDaysOfYear(year, {
+    calendar: args.calendar,
+    tramite: args.tramite,
+  });
   if (args.json) return void console.log(JSON.stringify(dias, null, 2));
 
   // Los fines de semana son ruido; interesan los festivos.
@@ -148,7 +169,15 @@ function cmdCalendarios(args: Args): void {
   for (const c of cals) {
     console.log(`  ${C.bold}${c.id}${C.reset} — ${c.name}`);
     console.log(`  ${C.dim}${c.description}${C.reset}`);
-    console.log(`  ${C.dim}Fuente: ${c.source}${C.reset}\n`);
+    console.log(`  ${C.dim}Fuente: ${c.source}${C.reset}`);
+    if (c.tramites?.length) {
+      console.log(`  ${C.dim}Trámites: ${c.tramites.map((t) => t.id).join(', ')}${C.reset}`);
+    }
+    if (c.annualDataYears) {
+      const years = c.annualDataYears.length === 0 ? 'ninguno' : c.annualDataYears.join(', ');
+      console.log(`  ${C.dim}Datos anuales cargados: ${years}${C.reset}`);
+    }
+    console.log('');
   }
 }
 

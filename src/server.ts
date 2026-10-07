@@ -78,6 +78,11 @@ function calendarOf(params: URLSearchParams): string {
   return id;
 }
 
+/** Tipo de trámite, cuando el calendario lo distingue. Ausente = régimen general. */
+function tramiteOf(params: URLSearchParams): string | undefined {
+  return params.get('tramite') ?? params.get('procedure') ?? undefined;
+}
+
 function unitOf(params: URLSearchParams): 'habiles' | 'naturales' {
   const u = params.get('unit') ?? params.get('unidad') ?? 'habiles';
   if (u !== 'habiles' && u !== 'naturales') {
@@ -89,7 +94,8 @@ function unitOf(params: URLSearchParams): 'habiles' | 'naturales' {
 const ROUTES: Record<string, (p: URLSearchParams) => unknown> = {
   '/v1/calendars': () => ({ calendars: listCalendars() }),
 
-  '/v1/day': (p) => explainDay(p.get('date') ?? today(), { calendar: calendarOf(p) }),
+  '/v1/day': (p) =>
+    explainDay(p.get('date') ?? today(), { calendar: calendarOf(p), tramite: tramiteOf(p) }),
 
   '/v1/compare': (p) => ({
     date: p.get('date') ?? today(),
@@ -100,14 +106,22 @@ const ROUTES: Record<string, (p: URLSearchParams) => unknown> = {
     const date = required(p, 'date');
     const days = intParam(p, 'days');
     const calendar = calendarOf(p);
-    return { date, days, calendar, result: addBusinessDays(date, days, { calendar }) };
+    const tramite = tramiteOf(p);
+    return { date, days, calendar, tramite, result: addBusinessDays(date, days, { calendar, tramite }) };
   },
 
   '/v1/between': (p) => {
     const from = required(p, 'from');
     const to = required(p, 'to');
     const calendar = calendarOf(p);
-    return { from, to, calendar, businessDays: businessDaysBetween(from, to, { calendar }) };
+    const tramite = tramiteOf(p);
+    return {
+      from,
+      to,
+      calendar,
+      tramite,
+      businessDays: businessDaysBetween(from, to, { calendar, tramite }),
+    };
   },
 
   '/v1/deadline': (p) =>
@@ -116,12 +130,19 @@ const ROUTES: Record<string, (p: URLSearchParams) => unknown> = {
       amount: intParam(p, 'days'),
       unit: unitOf(p),
       calendar: calendarOf(p),
+      tramite: tramiteOf(p),
     }),
 
   '/v1/year': (p) => {
     const year = intParam(p, 'year');
     const calendar = calendarOf(p);
-    return { year, calendar, nonBusinessDays: nonBusinessDaysOfYear(year, { calendar }) };
+    const tramite = tramiteOf(p);
+    return {
+      year,
+      calendar,
+      tramite,
+      nonBusinessDays: nonBusinessDaysOfYear(year, { calendar, tramite }),
+    };
   },
 
   '/health': () => ({ ok: true, since: metrics.startedAt }),
@@ -135,11 +156,12 @@ const ROUTES: Record<string, (p: URLSearchParams) => unknown> = {
     npm: 'https://www.npmjs.com/package/habil',
     endpoints: {
       'GET /v1/calendars': 'Calendarios disponibles y sus reglas.',
-      'GET /v1/day?date=&calendar=': '¿Es hábil? Con el fundamento.',
+      'GET /v1/day?date=&calendar=&tramite=': '¿Es hábil? Con el fundamento.',
       'GET /v1/compare?date=': 'La misma fecha en todos los calendarios.',
       'GET /v1/add?date=&days=&calendar=': 'Suma días hábiles.',
       'GET /v1/between?from=&to=&calendar=': 'Cuenta días hábiles entre dos fechas.',
-      'GET /v1/deadline?from=&days=&unit=&calendar=': 'Fecha de vencimiento de un plazo.',
+      'GET /v1/deadline?from=&days=&unit=&calendar=&tramite=':
+        'Fecha de vencimiento de un plazo.',
       'GET /v1/year?year=&calendar=': 'Días inhábiles de un año.',
     },
     example: '/v1/deadline?from=2026-03-13&days=15&calendar=mx-fiscal',

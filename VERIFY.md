@@ -10,7 +10,7 @@ Mientras una regla siga sin verificar, todo resultado que dependa de ella incluy
 `warning`. Eso es intencional: preferimos que la librería se vea incompleta a que
 alguien pierda un plazo confiando en un dato que nadie revisó.
 
-**Estado actual: 0 de 30 reglas verificadas.**
+**Estado actual: 0 de 38 reglas verificadas.**
 
 ## Cómo verificar una regla
 
@@ -28,7 +28,7 @@ alguien pierda un plazo confiando en un dato que nadie revisó.
 
 ## `mx-fiscal` — México — plazos fiscales federales
 
-Fuente: Código Fiscal de la Federación, artículo 12 — <https://www.diputados.gob.mx/LeyesBiblio/ref/cff.htm>
+Fuente: Código Fiscal de la Federación, artículo 12 — <https://www.diputados.gob.mx/LeyesBiblio/pdf/CFF.pdf>
 
 | ✔ | Regla | Qué codifica | Verificar que… |
 |---|---|---|---|
@@ -39,14 +39,27 @@ Fuente: Código Fiscal de la Federación, artículo 12 — <https://www.diputado
 | ☐ | `mx-fiscal:05-01` | 1 de mayo | la fuente use la fecha FIJA 1/5 y no la recorra a un lunes |
 | ☐ | `mx-fiscal:05-05` | 5 de mayo (inhábil fiscal, no es descanso obligatorio bajo la LFT) | la fuente use la fecha FIJA 5/5 y no la recorra a un lunes |
 | ☐ | `mx-fiscal:09-16` | 16 de septiembre | la fuente use la fecha FIJA 16/9 y no la recorra a un lunes |
-| ☐ | `mx-fiscal:11-20` | 20 de noviembre (fecha fija; la LFT lo recorre al tercer lunes) | la fuente use la fecha FIJA 20/11 y no la recorra a un lunes |
-| ☐ | 🔍 `mx-fiscal:12-01-sexenal` | 1 de diciembre de cada 6 años, por transmisión del Poder Ejecutivo Federal | el ciclo de 6 años y el año ancla 2024 sean correctos |
+| ☐ | 🔍 `mx-fiscal:nov-tercer-lunes` | Tercer lunes de noviembre, en conmemoración del 20 de noviembre | la fuente recorra el día al lunes número 3 del mes 11, y no use fecha fija |
+| ☐ | 🔍 `mx-fiscal:12-01-sexenal` | 1 de diciembre de cada 6 años, por transmisión del Poder Ejecutivo Federal | el ciclo de 6 años y el año ancla 2018 sean correctos |
 | ☐ | `mx-fiscal:12-25` | 25 de diciembre | la fuente use la fecha FIJA 25/12 y no la recorra a un lunes |
-| ☐ | 🔍 `mx-fiscal:vacaciones-generales-sat` | Vacaciones generales de las autoridades fiscales federales | **faltan datos** — hay que cargar las fechas publicadas por año |
+| ☐ | 🔍 `mx-fiscal:vacaciones-sat-2026` | Primer periodo general de vacaciones del SAT en 2026 | los 1 periodos correspondan al acuerdo publicado |
+
+### Prórrogas por día de la semana en `mx-fiscal`
+
+| ✔ | Regla | Trámites a los que aplica | Verificar que… |
+|---|---|---|---|
+| ☐ | 🔍 `mx-fiscal:prorroga-viernes-pago-bancario` | pago-bancario | la fuente prorrogue el plazo cuando el último día caiga en viernes, y solo para esos trámites |
+
+### Trámites que distingue `mx-fiscal`
+
+| id | Qué es | Fuente |
+|---|---|---|
+| `declaracion-pago` | Presentación de declaraciones y pago de contribuciones | Código Fiscal de la Federación, artículo 12, segundo párrafo |
+| `pago-bancario` | Pago de contribuciones ante instituciones de crédito autorizadas | Código Fiscal de la Federación, artículo 12, párrafos segundo y quinto |
 
 ## `mx-laboral` — México — días de descanso obligatorio (LFT)
 
-Fuente: Ley Federal del Trabajo, artículo 74 — <https://www.diputados.gob.mx/LeyesBiblio/ref/lft.htm>
+Fuente: Ley Federal del Trabajo, artículo 74 — <https://www.diputados.gob.mx/LeyesBiblio/pdf/LFT.pdf>
 
 | ✔ | Regla | Qué codifica | Verificar que… |
 |---|---|---|---|
@@ -56,26 +69,33 @@ Fuente: Ley Federal del Trabajo, artículo 74 — <https://www.diputados.gob.mx/
 | ☐ | `mx-laboral:05-01` | 1 de mayo | la fuente use la fecha FIJA 1/5 y no la recorra a un lunes |
 | ☐ | `mx-laboral:09-16` | 16 de septiembre | la fuente use la fecha FIJA 16/9 y no la recorra a un lunes |
 | ☐ | 🔍 `mx-laboral:nov-tercer-lunes` | Tercer lunes de noviembre, en conmemoración del 20 de noviembre | la fuente recorra el día al lunes número 3 del mes 11, y no use fecha fija |
-| ☐ | 🔍 `mx-laboral:12-01-sexenal` | 1 de diciembre de cada 6 años, por transmisión del Poder Ejecutivo Federal | el ciclo de 6 años y el año ancla 2024 sean correctos |
+| ☐ | 🔍 `mx-laboral:12-01-sexenal` | 1 de diciembre de cada 6 años, por transmisión del Poder Ejecutivo Federal | el ciclo de 6 años y el año ancla 2018 sean correctos |
+| ☐ | 🔍 `mx-laboral:10-01-sexenal` | 1 de octubre de cada 6 años, por transmisión del Poder Ejecutivo Federal | el ciclo de 6 años y el año ancla 2024 sean correctos |
 | ☐ | `mx-laboral:12-25` | 25 de diciembre | la fuente use la fecha FIJA 25/12 y no la recorra a un lunes |
 | ☐ | 🔍 `mx-laboral:jornada-electoral` | Jornada electoral ordinaria (federal o local) | **faltan datos** — hay que cargar las fechas publicadas por año |
 
 ## `mx-judicial-federal` — México — días inhábiles del Poder Judicial de la Federación
 
-Fuente: Ley Orgánica del Poder Judicial de la Federación — <https://www.diputados.gob.mx/LeyesBiblio/index.htm>
+Fuente: Ley de Amparo, artículo 19 — <https://www.diputados.gob.mx/LeyesBiblio/pdf/LAmp.pdf>
 
 | ✔ | Regla | Qué codifica | Verificar que… |
 |---|---|---|---|
 | ☐ | `mx-judicial:fin-de-semana` | Sábado o domingo | la fuente efectivamente excluye sábados y domingos |
 | ☐ | `mx-judicial:01-01` | 1 de enero | la fuente use la fecha FIJA 1/1 y no la recorra a un lunes |
-| ☐ | `mx-judicial:02-05` | 5 de febrero (fecha fija; la LFT lo recorre al primer lunes) | la fuente use la fecha FIJA 5/2 y no la recorra a un lunes |
-| ☐ | `mx-judicial:03-21` | 21 de marzo (fecha fija; la LFT lo recorre al tercer lunes) | la fuente use la fecha FIJA 21/3 y no la recorra a un lunes |
+| ☐ | `mx-judicial:02-05` | 5 de febrero (fecha fija; el CFF y la LFT lo recorren al primer lunes) | la fuente use la fecha FIJA 5/2 y no la recorra a un lunes |
+| ☐ | 🔍 `mx-judicial:feb-primer-lunes` | Primer lunes de febrero (día de descanso del personal del PJF) | la fuente recorra el día al lunes número 1 del mes 2, y no use fecha fija |
+| ☐ | `mx-judicial:03-21` | 21 de marzo (fecha fija; el CFF y la LFT lo recorren al tercer lunes) | la fuente use la fecha FIJA 21/3 y no la recorra a un lunes |
+| ☐ | 🔍 `mx-judicial:mar-tercer-lunes` | Tercer lunes de marzo (día de descanso del personal del PJF) | la fuente recorra el día al lunes número 3 del mes 3, y no use fecha fija |
 | ☐ | `mx-judicial:05-01` | 1 de mayo | la fuente use la fecha FIJA 1/5 y no la recorra a un lunes |
+| ☐ | `mx-judicial:05-05` | 5 de mayo | la fuente use la fecha FIJA 5/5 y no la recorra a un lunes |
+| ☐ | `mx-judicial:09-14` | 14 de septiembre | la fuente use la fecha FIJA 14/9 y no la recorra a un lunes |
 | ☐ | `mx-judicial:09-16` | 16 de septiembre | la fuente use la fecha FIJA 16/9 y no la recorra a un lunes |
-| ☐ | `mx-judicial:11-20` | 20 de noviembre | la fuente use la fecha FIJA 20/11 y no la recorra a un lunes |
+| ☐ | `mx-judicial:10-12` | 12 de octubre | la fuente use la fecha FIJA 12/10 y no la recorra a un lunes |
+| ☐ | `mx-judicial:11-20` | 20 de noviembre (fecha fija; el CFF y la LFT lo recorren al tercer lunes) | la fuente use la fecha FIJA 20/11 y no la recorra a un lunes |
+| ☐ | 🔍 `mx-judicial:nov-tercer-lunes` | Tercer lunes de noviembre (día de descanso del personal del PJF) | la fuente recorra el día al lunes número 3 del mes 11, y no use fecha fija |
 | ☐ | `mx-judicial:12-25` | 25 de diciembre | la fuente use la fecha FIJA 25/12 y no la recorra a un lunes |
-| ☐ | 🔍 `mx-judicial:vacaciones` | Periodos vacacionales del PJF | **faltan datos** — hay que cargar los periodos publicados por año |
-| ☐ | 🔍 `mx-judicial:suspension-labores` | Días de suspensión de labores por acuerdo | **faltan datos** — hay que cargar las fechas publicadas por año |
+| ☐ | 🔍 `mx-judicial:vacaciones-2026` | Periodos vacacionales del PJF en 2026 | los 2 periodos correspondan al acuerdo publicado |
+| ☐ | 🔍 `mx-judicial:suspension-2026` | Días de suspensión de labores del PJF en 2026, por circular | las 6 fechas correspondan a la publicación oficial |
 
 ## Bitácora de verificación
 

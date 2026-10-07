@@ -1,7 +1,7 @@
 import type { Calendar } from '../types.ts';
 
 const LFT = 'Ley Federal del Trabajo, artículo 74';
-const URL_LFT = 'https://www.diputados.gob.mx/LeyesBiblio/ref/lft.htm';
+const URL_LFT = 'https://www.diputados.gob.mx/LeyesBiblio/pdf/LFT.pdf';
 
 /**
  * Días de descanso obligatorio bajo la LFT.
@@ -19,6 +19,10 @@ export const mxLaboral: Calendar = {
     'Días de descanso obligatorio del artículo 74 de la LFT. No incluye el descanso semanal (art. 69) porque depende de la jornada de cada centro de trabajo.',
   source: LFT,
   url: URL_LFT,
+  // Vacío a propósito, y distinto de omitir el campo: la fracción IX depende de
+  // las jornadas electorales, que son federales Y locales y varían por entidad.
+  // No hay ningún año cargado, así que el motor advierte en todos.
+  annualDataYears: [],
   rules: [
     {
       kind: 'fixed',
@@ -84,14 +88,30 @@ export const mxLaboral: Calendar = {
       verified: false,
     },
     {
+      // Texto anterior a la reforma DOF 30-09-2024. Se conserva acotado con
+      // `until` para que el cómputo de plazos históricos siga siendo correcto.
       kind: 'periodic',
       id: 'mx-laboral:12-01-sexenal',
       label: '1 de diciembre de cada 6 años, por transmisión del Poder Ejecutivo Federal',
       month: 12,
       day: 1,
       everyYears: 6,
+      anchorYear: 2018,
+      until: 2023,
+      source: `${LFT}, fracción VII (texto anterior a la reforma DOF 30-09-2024)`,
+      url: URL_LFT,
+      verified: false,
+    },
+    {
+      kind: 'periodic',
+      id: 'mx-laboral:10-01-sexenal',
+      label: '1 de octubre de cada 6 años, por transmisión del Poder Ejecutivo Federal',
+      month: 10,
+      day: 1,
+      everyYears: 6,
       anchorYear: 2024,
-      source: LFT,
+      since: 2024,
+      source: `${LFT}, fracción VII (reformada DOF 30-09-2024)`,
       url: URL_LFT,
       verified: false,
     },
@@ -109,7 +129,9 @@ export const mxLaboral: Calendar = {
       kind: 'dates',
       id: 'mx-laboral:jornada-electoral',
       label: 'Jornada electoral ordinaria (federal o local)',
-      // Depende de la entidad y del calendario electoral vigente.
+      // Depende de la entidad y del calendario electoral vigente. Cargar esto
+      // exige decidir de qué entidad se habla, así que probablemente termine
+      // siendo un calendario por estado en vez de una lista global.
       dates: [],
       source: `${LFT}, fracción IX — determinado por las leyes electorales`,
       verified: false,

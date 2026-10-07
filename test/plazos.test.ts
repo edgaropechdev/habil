@@ -12,6 +12,7 @@ import {
   previousBusinessDay,
   rollForward,
   UnknownCalendarError,
+  UnknownTramiteError,
 } from '../src/index.ts';
 
 const fiscal = { calendar: 'mx-fiscal' } as const;
@@ -29,11 +30,27 @@ test('el calendario laboral no excluye fines de semana por sí mismo', () => {
   assert.equal(isBusinessDay('2026-03-21', laboral), true);
 });
 
-test('DIVERGENCIA: 20 de noviembre es fijo en fiscal, tercer lunes en laboral', () => {
-  assert.equal(isBusinessDay('2026-11-20', fiscal), false); // viernes 20, inhábil fiscal
-  assert.equal(isBusinessDay('2026-11-20', laboral), true); // pero sí es laborable
-  assert.equal(isBusinessDay('2026-11-16', laboral), false); // tercer lunes: descanso
-  assert.equal(isBusinessDay('2026-11-16', fiscal), true); // y hábil para el SAT
+test('DIVERGENCIA: el 20 de noviembre se recorre al lunes salvo en el PJF', () => {
+  // El CFF art. 12 y la LFT art. 74 fracc. VI dicen ambos "el tercer lunes de
+  // noviembre en conmemoración del 20 de noviembre". Quien diverge es el PJF: el
+  // art. 229 de la LOPJF sí usa la fecha fija.
+  assert.equal(isBusinessDay('2026-11-20', fiscal), true); // viernes 20: hábil
+  assert.equal(isBusinessDay('2026-11-20', laboral), true);
+  assert.equal(isBusinessDay('2026-11-20', judicial), false); // fecha fija
+
+  assert.equal(isBusinessDay('2026-11-16', fiscal), false); // tercer lunes
+  assert.equal(isBusinessDay('2026-11-16', laboral), false);
+  // El PJF pierde LOS DOS días: la fecha fija por la Ley de Amparo y el lunes
+  // recorrido porque su personal descansa los lunes del art. 74 de la LFT.
+  assert.equal(isBusinessDay('2026-11-16', judicial), false);
+});
+
+test('el PJF descansa el 14 de septiembre y los demás calendarios no', () => {
+  // El art. 229 lista "14 y 16 de septiembre". El 14 no aparece ni en el CFF ni
+  // en la LFT.
+  assert.equal(isBusinessDay('2026-09-14', judicial), false); // lunes
+  assert.equal(isBusinessDay('2026-09-14', fiscal), true);
+  assert.equal(isBusinessDay('2026-09-14', laboral), true);
 });
 
 test('DIVERGENCIA: 5 de mayo es inhábil fiscal pero no descanso obligatorio', () => {
@@ -41,17 +58,94 @@ test('DIVERGENCIA: 5 de mayo es inhábil fiscal pero no descanso obligatorio', (
   assert.equal(isBusinessDay('2026-05-05', laboral), true);
 });
 
-test('DIVERGENCIA: el judicial usa fechas fijas, no lunes recorridos', () => {
+test('DIVERGENCIA: el judicial pierde la fecha fija Y el lunes recorrido', () => {
   assert.equal(isBusinessDay('2026-02-05', judicial), false); // jueves 5 de febrero
-  assert.equal(isBusinessDay('2026-02-05', laboral), true);
+  assert.equal(isBusinessDay('2026-02-05', laboral), true); // la LFT lo recorrió
   assert.equal(isBusinessDay('2026-02-02', laboral), false); // primer lunes
-  assert.equal(isBusinessDay('2026-02-02', judicial), true);
+  assert.equal(isBusinessDay('2026-02-02', judicial), false); // también descansa
+  assert.equal(isBusinessDay('2026-02-02', fiscal), false);
 });
 
-test('la regla sexenal solo aplica cada 6 años', () => {
-  assert.equal(isBusinessDay('2024-12-01', fiscal), false);
-  assert.equal(isBusinessDay('2030-12-01', fiscal), false);
-  assert.equal(isBusinessDay('2027-12-01', fiscal), true);
+test('el PJF descansa el 5 de mayo y el 12 de octubre por la Ley de Amparo', () => {
+  // Ninguno de los dos está en el art. 229 de la LOPJF; ambos sí en el art. 19
+  // de la Ley de Amparo, que es la fuente operativa para plazos de amparo.
+  assert.equal(isBusinessDay('2026-10-12', judicial), false); // lunes
+  assert.equal(isBusinessDay('2026-10-12', fiscal), true);
+  assert.equal(isBusinessDay('2026-05-05', judicial), false); // martes
+  assert.equal(isBusinessDay('2026-05-05', fiscal), false); // el CFF también
+  assert.equal(isBusinessDay('2026-05-05', laboral), true); // la LFT no
+});
+
+test('los periodos vacacionales y las suspensiones cargadas cuentan como inhábiles', () => {
+  assert.equal(isBusinessDay('2026-07-20', judicial), false); // periodo de julio
+  assert.equal(isBusinessDay('2026-07-20', fiscal), false); // vacaciones del SAT
+  assert.equal(isBusinessDay('2026-07-16', fiscal), true); // el SAT arranca el 20
+  assert.equal(isBusinessDay('2026-07-16', judicial), false); // el PJF, el 16
+  assert.equal(isBusinessDay('2026-04-02', judicial), false); // suspensión por circular
+});
+
+test('avisa cuando se pregunta por un año sin datos anuales cargados', () => {
+  // El caso peligroso es el veredicto "hábil": un plazo puede salir corto.
+  const r = explainDay('2027-07-22', judicial);
+  assert.equal(r.isBusinessDay, true);
+  assert.ok(r.warnings.some((w) => w.includes('2027') && w.includes('datos que se publican')));
+
+  // Y no molesta en los años que sí están cargados.
+  const ok = explainDay('2026-09-08', judicial);
+  assert.ok(!ok.warnings.some((w) => w.includes('datos que se publican')));
+});
+
+test('un calendario sin ningún año cargado advierte siempre', () => {
+  // mx-laboral declara annualDataYears: [] — depende de las jornadas
+  // electorales y no tenemos ninguna. Es distinto de omitir el campo, que
+  // significa "este calendario no depende de datos anuales".
+  for (const fecha of ['2026-06-03', '2027-06-03']) {
+    const r = explainDay(fecha, laboral);
+    assert.ok(
+      r.warnings.some((w) => w.includes('Años disponibles: ninguno')),
+      `sin advertencia en ${fecha}`,
+    );
+  }
+
+  // Los calendarios que no dependen de datos anuales no deben advertir nada:
+  // el aviso perdería valor si apareciera siempre y en todas partes.
+  const propio = {
+    calendar: {
+      id: 'demo',
+      name: 'demo',
+      jurisdiction: 'MX',
+      description: 'sin datos anuales',
+      source: 'ninguna',
+      rules: [],
+    },
+  } as const;
+  assert.deepEqual(explainDay('2027-06-03', propio).warnings, []);
+});
+
+const tieneRegla = (r: { reasons: Array<{ ruleId: string }> }, frag: string) =>
+  r.reasons.some((x) => x.ruleId.includes(frag));
+
+test('la transmisión del Ejecutivo pasó de diciembre a octubre en la LFT', () => {
+  // Fracción VII reformada DOF 30-09-2024.
+  assert.equal(isBusinessDay('2024-10-01', laboral), false);
+  assert.equal(isBusinessDay('2030-10-01', laboral), false);
+  assert.equal(isBusinessDay('2027-10-01', laboral), true); // no toca sexenio
+
+  // El texto anterior (1 de diciembre) sigue vigente para plazos históricos.
+  // 2018-12-01 cayó en sábado y el calendario laboral no excluye fines de
+  // semana, así que se comprueba por el fundamento y no por el veredicto —
+  // de lo contrario la prueba pasaría por la razón equivocada.
+  assert.ok(tieneRegla(explainDay('2018-12-01', laboral), 'sexenal'));
+  assert.ok(!tieneRegla(explainDay('2030-12-01', laboral), 'sexenal'));
+});
+
+test('el CFF conserva el texto de diciembre, condicionado a una transmisión que ya no ocurre ahí', () => {
+  // "el 1o. de diciembre de cada 6 años, cuando corresponda a la transmisión del
+  // Poder Ejecutivo". Desde 2024 la transmisión es en octubre, así que la
+  // condición no se cumple. Y el 1 de octubre no está en la lista del CFF.
+  assert.ok(tieneRegla(explainDay('2018-12-01', fiscal), 'sexenal'));
+  assert.ok(!tieneRegla(explainDay('2030-12-01', fiscal), 'sexenal'));
+  assert.equal(isBusinessDay('2030-10-01', fiscal), true);
 });
 
 test('explainDay devuelve el fundamento, no solo el veredicto', () => {
@@ -164,7 +258,7 @@ test('compareCalendars muestra la misma fecha en los tres calendarios', () => {
   const r = compareCalendars('2026-11-20');
   const byId = Object.fromEntries(r.map((x) => [x.calendarId, x.isBusinessDay]));
   assert.deepEqual(byId, {
-    'mx-fiscal': false,
+    'mx-fiscal': true,
     'mx-laboral': true,
     'mx-judicial-federal': false,
   });
@@ -184,4 +278,78 @@ test('un calendario inexistente falla con un mensaje útil', () => {
     assert.match(e.message, /mx-fiscal/); // sugiere los disponibles
     return true;
   });
+});
+
+// --- Trámites (CFF art. 12) ---------------------------------------------
+
+const declaracion = { calendar: 'mx-fiscal', tramite: 'declaracion-pago' } as const;
+const pagoBancario = { calendar: 'mx-fiscal', tramite: 'pago-bancario' } as const;
+
+test('las vacaciones del SAT no suspenden los plazos de declaración y pago', () => {
+  // Segundo párrafo del art. 12: durante las vacaciones generales esos días sí
+  // se cuentan. Sin el trámite se aplica el régimen general, más restrictivo.
+  assert.equal(isBusinessDay('2026-07-22', fiscal), false);
+  assert.equal(isBusinessDay('2026-07-22', declaracion), true);
+  assert.equal(isBusinessDay('2026-07-22', pagoBancario), true);
+});
+
+test('un día hábil por excepción explica qué regla se descartó', () => {
+  // Un "hábil" sin explicación no sirve: hay que poder distinguir "no había
+  // regla" de "la regla no aplica a tu trámite".
+  const r = explainDay('2026-07-22', declaracion);
+  assert.equal(r.isBusinessDay, true);
+  assert.deepEqual(r.reasons, []);
+  assert.equal(r.setAside.length, 1);
+  assert.equal(r.setAside[0]?.ruleId, 'mx-fiscal:vacaciones-sat-2026');
+  assert.match(r.setAside[0]?.source ?? '', /Resolución Miscelánea/);
+
+  // Y sigue advirtiendo que la regla descartada no está verificada.
+  assert.ok(r.warnings.some((w) => w.includes('vacaciones-sat-2026')));
+
+  // Sin trámite no hay nada descartado, y el día es inhábil.
+  const g = explainDay('2026-07-22', fiscal);
+  assert.equal(g.isBusinessDay, false);
+  assert.deepEqual(g.setAside, []);
+});
+
+test('el pago bancario que vence en viernes se prorroga al siguiente hábil', () => {
+  // Último párrafo del art. 12. El viernes es hábil; la prórroga no viene de
+  // que el día sea inhábil sino del día de la semana y del trámite.
+  assert.equal(isBusinessDay('2026-09-11', fiscal), true); // viernes hábil
+
+  const sin = deadline({ from: '2026-09-04', amount: 7, unit: 'naturales', ...fiscal });
+  assert.equal(sin.date, '2026-09-11');
+  assert.equal(sin.extendedBy, undefined);
+
+  const con = deadline({ from: '2026-09-04', amount: 7, unit: 'naturales', ...pagoBancario });
+  assert.equal(con.date, '2026-09-14'); // lunes
+  assert.equal(con.rolledForwardFrom, '2026-09-11');
+  assert.equal(con.extendedBy?.ruleId, 'mx-fiscal:prorroga-viernes-pago-bancario');
+  assert.match(con.extendedBy?.source ?? '', /quinto párrafo/);
+
+  // La prórroga solo aplica a ese trámite, no a cualquier plazo fiscal.
+  const otro = deadline({ from: '2026-09-04', amount: 7, unit: 'naturales', ...declaracion });
+  assert.equal(otro.date, '2026-09-11');
+});
+
+test('un trámite desconocido falla con un mensaje útil', () => {
+  assert.throws(
+    () => isBusinessDay('2026-01-01', { calendar: 'mx-fiscal', tramite: 'inventado' }),
+    (e: Error) => {
+      assert.ok(e instanceof UnknownTramiteError);
+      assert.match(e.message, /declaracion-pago/); // sugiere los disponibles
+      return true;
+    },
+  );
+});
+
+test('pedir un trámite a un calendario que no los distingue falla', () => {
+  assert.throws(
+    () => isBusinessDay('2026-01-01', { calendar: 'mx-laboral', tramite: 'declaracion-pago' }),
+    (e: Error) => {
+      assert.ok(e instanceof UnknownTramiteError);
+      assert.match(e.message, /no distingue trámites/);
+      return true;
+    },
+  );
 });
